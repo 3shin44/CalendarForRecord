@@ -5,6 +5,10 @@
       <button class="btn btn-primary" @click="setMonth('prev')">PREV</button>
       <button class="btn btn-primary ms-1" @click="setMonth('next')">NEXT</button>
     </div>
+    <div class="btn-group ms-3" role="group">
+      <button class="btn btn-info" @click="exportRecord">EXPORT</button>
+      <button class="btn btn-info ms-1" @click="importRecord">IMPORT</button>
+    </div>
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -24,16 +28,14 @@
       </tbody>
     </table>
 
-    <div class="form-check d-flex align-items-center" >
-      <input value="deleteMode" v-model="selectedData" id="deleteMode"
-      class="form-check-input" type="radio">
+    <div class="form-check d-flex align-items-center">
+      <input value="deleteMode" v-model="selectedData" id="deleteMode" class="form-check-input" type="radio">
       <label class="form-check-label fs-5 ms-2" for="deleteMode">
         刪除模式
       </label>
     </div>
     <div class="form-check d-flex align-items-center" v-for="(item, index) in TypeList" :key="index">
-      <input :value="item.typeName" v-model="selectedData" :id="item.id"
-      class="form-check-input" type="radio">
+      <input :value="item.typeName" v-model="selectedData" :id="item.id" class="form-check-input" type="radio">
       <label class="form-check-label fs-3 ms-2" :for="item.id" v-html="item.typeName">
       </label>
     </div>
@@ -98,12 +100,12 @@
     },
     methods: {
       selectDay(day) {
-        if(!this.selectedData){
+        if (!this.selectedData) {
           alert("No data is selected")
           return
         }
 
-        if(this.selectedData == 'deleteMode'){
+        if (this.selectedData == 'deleteMode') {
           // 刪除模式函式
           this.openEditPanel(day.date)
           return
@@ -195,8 +197,28 @@
         value ? this.currentRecord = JSON.parse(value) : this.updateLocalStorage()
       },
 
-      openEditPanel(date){
+      openEditPanel(date) {
         console.log(date);
+      },
+
+      exportRecord() {
+        let getLocaldata = (JSON.stringify(localStorage))
+        this.convertToText(getLocaldata, "test.json")
+      },
+      importRecord() { },
+
+      // convert input text data to plain/txt file and download
+      convertToText(text, fileName) {
+        let a = document.createElement("a")
+        document.body.appendChild(a)
+        a.style = "display: none"
+        let json = JSON.stringify(text)
+        let blob = new Blob([json], { type: "octet/stream" })
+        let url = window.URL.createObjectURL(blob)
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        window.URL.revokeObjectURL(url)
       }
     },
     mounted() {
