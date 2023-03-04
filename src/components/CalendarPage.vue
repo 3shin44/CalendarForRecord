@@ -2,12 +2,14 @@
   <div class="calendar-page p-3">
     <h2>{{ monthName }} {{ year }}</h2>
     <div class="btn-group" role="group">
-      <button class="btn btn-primary" @click="setMonth('prev')">PREV</button>
-      <button class="btn btn-primary ms-1" @click="setMonth('next')">NEXT</button>
+      <button class="btn btn-primary" @click="setMonth('prev')">前一月</button>
+      <button class="btn btn-primary ms-1" @click="setMonth('next')">後一月</button>
     </div>
     <div class="btn-group ms-3" role="group">
-      <button class="btn btn-info" @click="exportRecord">EXPORT</button>
-      <button class="btn btn-info ms-1" @click="importRecord">IMPORT</button>
+      <button class="btn btn-info" @click="exportRecord">匯出</button>
+      <input type="file" class="d-none" id="importData" @change="importRecord">
+      <label class="btn btn-info ms-1" for="importData">匯入</label>
+      <button class="btn btn-info ms-1" @click="generateReport">產生報表</button>
     </div>
     <table class="table table-bordered">
       <thead>
@@ -35,9 +37,32 @@
       </label>
     </div>
     <div class="form-check d-flex align-items-center" v-for="(item, index) in TypeList" :key="index">
-      <input :value="item.typeName" v-model="selectedData" :id="item.id" class="form-check-input" type="radio">
-      <label class="form-check-label fs-3 ms-2" :for="item.id" v-html="item.typeName">
+      <input :value="item.hexCode" v-model="selectedData" :id="item.id" class="form-check-input" type="radio">
+      <label class="form-check-label fs-3 ms-2" :for="item.id"><span v-html="item.hexCode"></span> <span class="fs-5">{{item.id}} ({{item.elementType}}) </span>
       </label>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">刪除現存資料</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="!editReocrd || editReocrd.length == 0">暫無資料</div>
+            <div v-else class="form-check d-flex align-items-center" v-for="(item, index) in editReocrd" :key="index">
+              <input class="form-check-input mt-0" type="checkbox" :value="index" :id="'edit' + index"
+                v-model="deleteList">
+              <label class="form-check-label fs-3 ms-3" :for="'edit' + index" v-html="item"></label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" @click="saveEdited" :disabled="!editReocrd || editReocrd.length == 0" >儲存</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -45,7 +70,8 @@
 
 <script>
   import dayjs from 'dayjs'
-
+  import { Modal } from 'bootstrap'
+  import calendarFunc from '@/assets/js/CalendarPage/CalendarFunc';
   export default {
     name: 'CalendarPage',
     props: {},
@@ -63,33 +89,13 @@
         weeks: null,
         currentRecord: {},
         selectedData: "",
-        TypeList: [
-          {
-            typeName: "&#x264E;",
-            id: "type1"
-          },
-          {
-            typeName: "&#x264F;",
-            id: "type2"
-          },
-          {
-            typeName: "&#x2650;",
-            id: "type3"
-          },
-          {
-            typeName: "&#x2651;",
-            id: "type4"
-          },
-          {
-            typeName: "&#x2652;",
-            id: "type5"
-          },
-          {
-            typeName: "&#x2653;",
-            id: "type6"
-          }
-
-        ]
+        // 可選類別清單
+        TypeList: calendarFunc.recordTypeList,
+        // bootstrap modal
+        deleteModal: null,
+        editDate: null,
+        editReocrd: null,
+        deleteList: []
       };
     },
     computed: {
@@ -99,15 +105,16 @@
       },
     },
     methods: {
+      // 選擇日期
       selectDay(day) {
         if (!this.selectedData) {
-          alert("No data is selected")
+          alert("未選擇紀錄標籤")
           return
         }
 
         if (this.selectedData == 'deleteMode') {
-          // 刪除模式函式
-          this.openEditPanel(day.date)
+          // 打開刪除面板
+          this.openDeletePanel(day.date)
           return
         }
 
@@ -197,34 +204,109 @@
         value ? this.currentRecord = JSON.parse(value) : this.updateLocalStorage()
       },
 
-      openEditPanel(date) {
-        console.log(date);
+      // 匯出
+      exportRecord() {
+        let stamp = calendarFunc.generateTimeStamp()
+        let getLocaldata = (JSON.stringify(localStorage))
+        this.convertToText(getLocaldata, `Backup${stamp}.json`)
+      },
+      // 匯入資料
+      importRecord(e) {
+        let files = e.target.files
+        if (files.length === 0){
+          return
+        }
+        const file = files[0]
+        let reader = new FileReader();
+        reader.onload = (data) => {
+          let content = data.target.result
+          // fileReader會多解一次字串
+          let convertContent = JSON.parse(content)
+          convertContent = JSON.parse(convertContent)
+          // 回寫localStorage
+          for( const [key, value] of Object.entries(convertContent) ){
+            localStorage.setItem(key, value)
+          }
+          // 更新vue資料
+          this.getLocalStorage()
+        }
+        reader.onerror = (e) => alert(e.target.error.name);
+        reader.readAsText(file);
       },
 
-      exportRecord() {
-        let getLocaldata = (JSON.stringify(localStorage))
-        this.convertToText(getLocaldata, "test.json")
+      // 產生報表檔案
+      generateReport(){
+        let reportText = this.packageDate()
+        let stamp = calendarFunc.generateTimeStamp()
+        this.convertToText(reportText, `Report${stamp}.txt`, false)
       },
-      importRecord() { },
+      // 產生報表檔案: 資料打包
+      packageDate(){
+        let report = ''
+        for( const [key, value] of Object.entries(localStorage)){
+          let parseData = JSON.parse(value)
+          for( const [r_key, r_value] of Object.entries(parseData.record)){
+            let convertName = r_value.map((element)=>{
+              return calendarFunc.getZodiacName(element)
+            })
+            // Example: 2023-3-13, Aries, Aries \n 2023-3-14, Cancer, Cancer
+            let exportValue = convertName.join(",")
+            let concatData = `${parseData.primaryKey}-${r_key},${exportValue}\r`
+            report += concatData
+          }
+        }
+        // remove last \n
+        report = report.replace(/\n$/, "")
+        return report
+      },
 
       // convert input text data to plain/txt file and download
-      convertToText(text, fileName) {
+      convertToText(text, fileName, toJson=true) {
         let a = document.createElement("a")
         document.body.appendChild(a)
         a.style = "display: none"
-        let json = JSON.stringify(text)
-        let blob = new Blob([json], { type: "octet/stream" })
+        let json = text
+        if(toJson){
+          text = JSON.stringify(text)
+        }
+        let blob = new Blob([text], { type: "octet/stream" })
         let url = window.URL.createObjectURL(blob)
         a.href = url;
         a.download = fileName;
         a.click();
         window.URL.revokeObjectURL(url)
+      },
+
+      // initiate modal
+      initModal() {
+        this.deleteModal = new Modal(document.getElementById('deleteModal'), {})
+      },
+      // open delete panel
+      openDeletePanel(date) {
+        this.editDate = date
+        this.editReocrd = this.currentRecord.record[date]
+        this.deleteModal.show()
+      },
+      // 儲存編輯結果
+      saveEdited() {
+        let filteredList = []
+        filteredList = this.editReocrd.filter((element, el_index) => {
+          // 比較已選索引值
+          if (this.deleteList.indexOf(el_index) == -1) {
+            return element
+          }
+        })
+        this.deleteList = []
+        this.currentRecord.record[this.editDate] = filteredList
+        this.deleteModal.hide()
+
       }
     },
     mounted() {
       this.updateDays()
       this.initCurrentRecord()
       this.getLocalStorage()
+      this.initModal()
     },
     watch: {
       today: {
@@ -233,7 +315,6 @@
           this.initCurrentRecord()
           // 獲取&更新現有資料
           this.getLocalStorage()
-
         },
         deep: true
       },
