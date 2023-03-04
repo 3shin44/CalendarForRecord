@@ -3,6 +3,7 @@
     <h2>{{ monthName }} {{ year }}</h2>
     <div class="btn-group" role="group">
       <button class="btn btn-primary" @click="setMonth('prev')">前一月</button>
+      <button class="btn btn-primary ms-1" @click="setMonth('current')">當月</button>
       <button class="btn btn-primary ms-1" @click="setMonth('next')">後一月</button>
     </div>
     <div class="btn-group ms-3" role="group">
@@ -38,7 +39,8 @@
     </div>
     <div class="form-check d-flex align-items-center" v-for="(item, index) in TypeList" :key="index">
       <input :value="item.hexCode" v-model="selectedData" :id="item.id" class="form-check-input" type="radio">
-      <label class="form-check-label fs-3 ms-2" :for="item.id"><span v-html="item.hexCode"></span> <span class="fs-5">{{item.id}} ({{item.elementType}}) </span>
+      <label class="form-check-label fs-3 ms-2" :for="item.id"><span v-html="item.hexCode"></span> <span
+          class="fs-5">{{item.id}} ({{item.elementType}}) </span>
       </label>
     </div>
 
@@ -59,7 +61,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary" @click="saveEdited" :disabled="!editReocrd || editReocrd.length == 0" >儲存</button>
+            <button type="button" class="btn btn-primary" @click="saveEdited"
+              :disabled="!editReocrd || editReocrd.length == 0">儲存</button>
           </div>
         </div>
       </div>
@@ -129,8 +132,14 @@
         return this.selectedDate && this.selectedDate.isSame(this.year, 'year') && this.selectedDate.isSame(this.month, 'month') && this.selectedDate.isSame(day.date, 'day');
       },
       setMonth(action) {
-        let iBackward = action == 'prev' ? -1 : 1
-        this.today = this.today.add(iBackward, 'month')
+        if (action == 'current') {
+          let currentMonth = new Date().getMonth()
+          this.today = this.today.set('month', currentMonth)
+        } else {
+          let iBackward = action == 'prev' ? -1 : 1
+          this.today = this.today.add(iBackward, 'month')
+        }
+
         this.updateDays()
       },
 
@@ -213,7 +222,7 @@
       // 匯入資料
       importRecord(e) {
         let files = e.target.files
-        if (files.length === 0){
+        if (files.length === 0) {
           return
         }
         const file = files[0]
@@ -224,7 +233,7 @@
           let convertContent = JSON.parse(content)
           convertContent = JSON.parse(convertContent)
           // 回寫localStorage
-          for( const [key, value] of Object.entries(convertContent) ){
+          for (const [key, value] of Object.entries(convertContent)) {
             localStorage.setItem(key, value)
           }
           // 更新vue資料
@@ -235,18 +244,18 @@
       },
 
       // 產生報表檔案
-      generateReport(){
+      generateReport() {
         let reportText = this.packageDate()
         let stamp = calendarFunc.generateTimeStamp()
         this.convertToText(reportText, `Report${stamp}.txt`, false)
       },
       // 產生報表檔案: 資料打包
-      packageDate(){
+      packageDate() {
         let report = ''
-        for( const [key, value] of Object.entries(localStorage)){
+        for (const [key, value] of Object.entries(localStorage)) {
           let parseData = JSON.parse(value)
-          for( const [r_key, r_value] of Object.entries(parseData.record)){
-            let convertName = r_value.map((element)=>{
+          for (const [r_key, r_value] of Object.entries(parseData.record)) {
+            let convertName = r_value.map((element) => {
               return calendarFunc.getZodiacName(element)
             })
             // Example: 2023-3-13, Aries, Aries \n 2023-3-14, Cancer, Cancer
@@ -261,12 +270,12 @@
       },
 
       // convert input text data to plain/txt file and download
-      convertToText(text, fileName, toJson=true) {
+      convertToText(text, fileName, toJson = true) {
         let a = document.createElement("a")
         document.body.appendChild(a)
         a.style = "display: none"
         let json = text
-        if(toJson){
+        if (toJson) {
           text = JSON.stringify(text)
         }
         let blob = new Blob([text], { type: "octet/stream" })
