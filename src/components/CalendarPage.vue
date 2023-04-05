@@ -103,8 +103,9 @@
     },
     computed: {
       // Get the name of the current month
+      // fix month name
       monthName() {
-        return dayjs().month(this.month).format('MMMM');
+        return dayjs().month(this.month-1).format('MMMM');
       },
     },
     methods: {
