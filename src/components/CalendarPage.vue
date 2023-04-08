@@ -177,7 +177,7 @@
        */
       updateDays() {
         this.year = this.today.year()
-        this.month = this.today.month()
+        this.month = this.today.month() + 1  
         this.daysInMonth = dayjs(`${this.year}-${this.month}`).daysInMonth();
         this.firstDayOfMonth = dayjs(`${this.year}-${this.month}-1`).day()
         this.weeks = this.getNewWeeks()
